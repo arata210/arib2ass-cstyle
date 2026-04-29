@@ -74,7 +74,7 @@ static void write_styles(FILE *f, const struct ass_style *s)
     fprintf(f,
             "[V4+ Styles]\n"
             "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n"
-            "Style: %s,%s,%s,&H%08X,&H00000000,&H%08X,&H%08X,%d,%d,%d,0,%s,%s,%s,0,1,%s,%s,%d,0,0,0,1\n"
+            "Style: %s,%s,%s,&H%08X,&H00000000,&H%08X,&H%08X,%d,%d,%d,0,%s,%s,%s,0,4,%s,%s,%d,0,0,0,1\n"
             "\n", s->name, s->fontname, sftf(s->fs), s->primary_color, s->border_color, s->shadow_color, s->bold, s->italic, s->underline,
             sftf(s->scale_x * 100), sftf(s->scale_y * 100), sftf(s->spacing_x), sftf(s->border), sftf(s->shadow), s->align);
 }
