@@ -62,6 +62,7 @@ static void write_header(FILE *f, int width, int height)
             "PlayResY: %d\n"
             "LayoutResX: %d\n"
             "LayoutResY: %d\n"
+            "YCbCr Matrix: None\n"
             "\n",
             width, height, width, height);
 }
