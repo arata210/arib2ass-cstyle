@@ -126,6 +126,17 @@ static const struct option arg_options_srt[] = {
 
 static void print_help()
 {
+    int pi = 0, lw = 0;
+    char pbuf[4096];
+    #define HPRETTY(val, fmt, val_if_default, text_if_default) \
+        ((val == val_if_default) ? (PSTR(text_if_default)) : (lw = snprintf(pbuf + pi, sizeof(pbuf) - pi, fmt, val), pi += lw, pbuf + pi - lw))
+
+    const char *val_font_path = HPRETTY(opt_ass_font_path, "%s", NULL, "[Unset]");
+    const char *val_font_face = HPRETTY(opt_ass_font_face, "%s", NULL, "[Unset]");
+    const char *val_constant_spacing = HPRETTY(opt_ass_constant_spacing, "%d", -1, "[Disabled]");
+
+    assert(pi < sizeof(pbuf));
+
     pprintf(
             PSTR("arib2ass-cstyle")
 #ifdef A2AC_VERSION
@@ -156,7 +167,7 @@ static void print_help()
             PSTR("  -m   --merge-regions      Combine 2 left-aligned, directly connected lines into one (%s)\n")
             PSTR("  -d   --debug-boxes        Include debug boxes in the resulting file (%s)\n")
             PSTR("  -C   --no-center-spacing  Do not align each character in the middle of its given bounding box (%s)\n")
-            PSTR("  -s   --constant-spacing   Use this many pixels between each character. (%d)\n")
+            PSTR("  -s   --constant-spacing   Use this many pixels between each character. (%s)\n")
             PSTR("  -r   --shift-ruby         When using constant-spacing, try to find and shift the furigana to its correct spot (%s)\n")
             PSTR("  -a   --fs-adjust          Adjust smaller fonts to make them appear with the expected size (%s)\n")
             PSTR("  -S   --shadow-box         Use BorderStyle=4 to create a background for the line\n")
@@ -167,10 +178,12 @@ static void print_help()
             PSTR("  -t   --tags               Write formatting tags (%s)\n")
             PSTR("  -f   --furi               Try to write furigana in parenthesis. EXPERIMENTAL. (%s)\n")
             PSTR("\n"),
-            opt_ass_font_path, opt_ass_font_face, B(!opt_ass_optimize), B(opt_ass_force_bold), B(opt_ass_force_border),
-            B(opt_ass_merge_regions), B(opt_ass_debug_boxes), B(!opt_ass_center_spacing), opt_ass_constant_spacing,
+            val_font_path, val_font_face, B(!opt_ass_optimize), B(opt_ass_force_bold), B(opt_ass_force_border),
+            B(opt_ass_merge_regions), B(opt_ass_debug_boxes), B(!opt_ass_center_spacing), val_constant_spacing,
             B(opt_ass_shift_ruby), B(opt_ass_fs_adjust), u8PC(opt_ass_ycbcr), B(opt_srt_tags), B(opt_srt_furi)
             );
+
+#undef HPRETTY
 }
 
 static char *toml_escape_string(const char *in, char *out, size_t out_size)

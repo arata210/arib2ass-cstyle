@@ -93,6 +93,7 @@ static void write_file_to_drcs_dir(const char *filename, const uint8_t *data, si
     plclose(fd);
 
 end:
+    ; // just to hide a warning
 #ifdef _WIN32
     free(curr_dir);
 #endif

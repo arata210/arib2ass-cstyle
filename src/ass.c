@@ -112,6 +112,9 @@ static void write_header(FILE *f, int width, int height, const struct tsdecode *
 
 static void write_styles(FILE *f, const struct ass_style *s)
 {
+    /* -1 is true, 0 is false */
+#define ASS_BOOL(val) ((val) ? (-1) : (0))
+
     sftf_init();
 
     int border_style = 1;
@@ -123,8 +126,10 @@ static void write_styles(FILE *f, const struct ass_style *s)
             "[V4+ Styles]\n"
             "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n"
             "Style: %s,%s,%s,&H%08X,&H00000000,&H%08X,&H%08X,%d,%d,%d,0,%s,%s,%s,0,%d,%s,%s,%d,0,0,0,1\n"
-            "\n", s->name, s->fontname, sftf(s->fs), s->primary_color, s->border_color, s->shadow_color, s->bold, s->italic, s->underline,
+            "\n", s->name, s->fontname, sftf(s->fs), s->primary_color, s->border_color, s->shadow_color, ASS_BOOL(s->bold), ASS_BOOL(s->italic), ASS_BOOL(s->underline),
             sftf(s->scale_x * 100), sftf(s->scale_y * 100), sftf(s->spacing_x), border_style, sftf(s->border), sftf(s->shadow), s->align);
+
+#undef ASS_BOOL
 }
 
 static void ass_style_update_from_tt_events(const struct tagtext_event events[TT_STYLE_COUNT_], struct ass_style *out_style)
