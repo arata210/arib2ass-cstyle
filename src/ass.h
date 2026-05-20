@@ -4,6 +4,6 @@
 #include "subobj.h"
 #include "platform.h"
 
-enum error ass_write(const struct subobj_ctx *sctx, const pchar *filepath);
+enum error ass_write(const struct subobj_ctx *sctx, const struct tsdecode *tsd, const pchar *filepath);
 
 #endif /* A2AC_ASS_H */

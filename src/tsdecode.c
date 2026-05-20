@@ -102,11 +102,12 @@ static int open_av_file(const pchar *fpath, AVFormatContext **out_avc, struct ts
 #endif
 }
 
+const char* autodetect_ycbcr(const struct tsdecode *tsd, char ybuff[128]);
 enum error tsdecode_open_file(const pchar *fpath, struct tsdecode *out)
 {
     AVFormatContext * avformat_context = NULL;
     struct pstat st;
-    int               ret, caption_stream_idx = -1, video_stream_idx = -1;
+    int ret, caption_stream_idx = -1, video_stream_idx = -1;
 
     if (opt_log_level > LOG_DEBUG)
         av_log_set_level(AV_LOG_QUIET);
@@ -122,7 +123,7 @@ enum error tsdecode_open_file(const pchar *fpath, struct tsdecode *out)
     find_stream_infos(avformat_context, &caption_stream_idx, &video_stream_idx);
     if (caption_stream_idx == -1 || video_stream_idx == -1) {
         log_error("caption stream not found in file\n");
-        tsdecode_free(out);
+        avformat_close_input(&avformat_context);
         return ERR_NO_CAPTION_STREAM;
     }
     log_info("ARIB Caption stream was found at index: %d\n", caption_stream_idx);
@@ -197,3 +198,22 @@ time_t tsdecode_get_video_length(const struct tsdecode *tsd)
     time_t d = stream->duration;
     return av_rescale_q(d, stream->time_base, (AVRational){1, 1000});
 }
+
+enum error tsdecode_get_color_info(const struct tsdecode *tsd, struct color_info *out_info)
+{
+    const AVCodecParameters *codecpar;
+
+    assert(tsd->avformat_context->nb_streams > tsd->video_stream_idx);
+    codecpar = tsd->avformat_context->streams[tsd->video_stream_idx]->codecpar;
+    assert(codecpar->codec_type == AVMEDIA_TYPE_VIDEO);
+
+    *out_info = (struct color_info){
+        .color_range        = codecpar->color_range,
+        .color_primaries    = codecpar->color_primaries,
+        .color_trc          = codecpar->color_trc,
+        .color_space        = codecpar->color_space,
+    };
+
+    return NOERR;
+}
+

@@ -39,6 +39,8 @@ int opt_ass_constant_spacing = -1;
  * so it will still line up correctly */
 bool opt_ass_shift_ruby = false;
 const bool opt_ass_only_furi = false;
+bool opt_ass_shadow_box = false;
+char opt_ass_ycbcr[128] = "None";
 
 bool opt_srt_do = false;
 bool opt_srt_tags = false;
@@ -60,6 +62,7 @@ enum short_opts {
     SOPT_DUMP_DRCS = 0x102,
     SOPT_DUMP_DRCS_PNG = 0x103,
     SOPT_DRCS_CONV = 'D',
+
     SOPT_ASS_NO_OPTIMIZE = 'Z',
     SOPT_ASS_FORCE_BOLD = 'b',
     SOPT_ASS_FORCE_BORDER = 'B',
@@ -71,6 +74,8 @@ enum short_opts {
     SOPT_ASS_FONT_PATH = 'f',
     SOPT_ASS_FONT_FACE = 0x101,
     SOPT_ASS_FS_ADJUST = 'a',
+    SOPT_ASS_SHADOW_BOX = 'S',
+    SOPT_ASS_YCBCR = 'Y',
 
     SOPT_SRT_TAGS = 't',
     SOPT_SRT_FURI = 'f',
@@ -91,7 +96,7 @@ static const struct option arg_options_pre[] = {
     { 0 },
 };
 
-static const pchar arg_string_ass[] = PSTR("+ho:ZbBmdCs:rf:a");
+static const pchar arg_string_ass[] = PSTR("+ho:ZbBmdCs:rf:aY:S");
 static const struct option arg_options_ass[] = {
     { PSTR("help"),               no_argument,       NULL, SOPT_HELP },
     { PSTR("output"),             required_argument, NULL, SOPT_OUTPUT },
@@ -106,6 +111,8 @@ static const struct option arg_options_ass[] = {
     { PSTR("font"),               required_argument, NULL, SOPT_ASS_FONT_PATH },
     { PSTR("font-face"),          required_argument, NULL, SOPT_ASS_FONT_FACE },
     { PSTR("fs-adjust"),          no_argument,       NULL, SOPT_ASS_FS_ADJUST },
+    { PSTR("shadow-box"),         no_argument,       NULL, SOPT_ASS_SHADOW_BOX },
+    { PSTR("ycbcr"),              required_argument, NULL, SOPT_ASS_YCBCR },
 };
 
 static const pchar arg_string_srt[] = PSTR("+ho:tf");
@@ -152,15 +159,17 @@ static void print_help()
             PSTR("  -s   --constant-spacing   Use this many pixels between each character. (%d)\n")
             PSTR("  -r   --shift-ruby         When using constant-spacing, try to find and shift the furigana to its correct spot (%s)\n")
             PSTR("  -a   --fs-adjust          Adjust smaller fonts to make them appear with the expected size (%s)\n")
+            PSTR("  -S   --shadow-box         Use BorderStyle=4 to create a background for the line\n")
+            PSTR("  -Y   --ycbcr              The YCbCr Matrix to use. Can be: None, auto, or any other string. (%s)\n")
             PSTR("\n")
             PSTR("SRT OPTIONS:\n")
             PSTR("  -o   --output             Output resulting file into this path, or directory\n")
             PSTR("  -t   --tags               Write formatting tags (%s)\n")
-            PSTR("  -f   --furi               Try to write furigana in parenthesis (%s)\n")
+            PSTR("  -f   --furi               Try to write furigana in parenthesis. EXPERIMENTAL. (%s)\n")
             PSTR("\n"),
             opt_ass_font_path, opt_ass_font_face, B(!opt_ass_optimize), B(opt_ass_force_bold), B(opt_ass_force_border),
             B(opt_ass_merge_regions), B(opt_ass_debug_boxes), B(!opt_ass_center_spacing), opt_ass_constant_spacing,
-            B(opt_ass_shift_ruby), B(opt_ass_fs_adjust), B(opt_srt_tags), B(opt_srt_furi)
+            B(opt_ass_shift_ruby), B(opt_ass_fs_adjust), u8PC(opt_ass_ycbcr), B(opt_srt_tags), B(opt_srt_furi)
             );
 }
 
@@ -223,6 +232,8 @@ static enum error dump_config(const pchar *outfile)
         fprintf(f, "constant-spacing = %d\n", opt_ass_constant_spacing);
         fprintf(f, "shift-ruby = %s\n", B8(opt_ass_shift_ruby));
         fprintf(f, "fs-adjust = %s\n", B8(opt_ass_fs_adjust));
+        fprintf(f, "shadow-box = %s\n", B8(opt_ass_shadow_box));
+        fprintf(f, "ycbcr = \"%s\"\n", TESC(opt_ass_ycbcr));
     }
 
     if (opt_srt_do) {
@@ -297,27 +308,27 @@ static enum error parse_toml(toml_table_t *toml)
             opt_ass_font_face = u8PCmem(val.u.s);
         }
 
-        val = toml_table_int(subt, "force-bold");
+        val = toml_table_bool(subt, "force-bold");
         if (val.ok) {
             opt_ass_force_bold = val.u.b;
         }
 
-        val = toml_table_int(subt, "force-border");
+        val = toml_table_bool(subt, "force-border");
         if (val.ok) {
             opt_ass_force_border = val.u.b;
         }
 
-        val = toml_table_int(subt, "merge-regions");
+        val = toml_table_bool(subt, "merge-regions");
         if (val.ok) {
             opt_ass_merge_regions = val.u.b;
         }
 
-        val = toml_table_int(subt, "debug-boxes");
+        val = toml_table_bool(subt, "debug-boxes");
         if (val.ok) {
             opt_ass_debug_boxes = val.u.b;
         }
 
-        val = toml_table_int(subt, "center-spacing");
+        val = toml_table_bool(subt, "center-spacing");
         if (val.ok) {
             opt_ass_center_spacing = val.u.b;
         }
@@ -327,14 +338,36 @@ static enum error parse_toml(toml_table_t *toml)
             opt_ass_constant_spacing = val.u.i;
         }
 
-        val = toml_table_int(subt, "shift-ruby");
+        val = toml_table_bool(subt, "shift-ruby");
         if (val.ok) {
             opt_ass_shift_ruby = val.u.b;
         }
 
-        val = toml_table_int(subt, "fs-adjust");
+        val = toml_table_bool(subt, "fs-adjust");
         if (val.ok) {
             opt_ass_fs_adjust = val.u.b;
+        }
+
+        val = toml_table_bool(subt, "shadow-box");
+        if (val.ok) {
+            opt_ass_shadow_box = val.u.b;
+        }
+
+        val = toml_table_string(subt, "ycbcr");
+        if (val.ok) {
+            if (val.u.sl > sizeof(opt_ass_ycbcr) - 1) {
+                log_warning("YCbCr matrix from config file too long, skipping it...\n");
+            } else {
+                /* Now, this can contain NULL bytes, but we will just ignore them (becasue why would
+                 * you use NULL bytes here) and copy until the string length, or until the 1st NULL byte..
+                 * I'll allow empty strings
+                 */
+                size_t nlen = strnlen(val.u.s, sizeof(opt_ass_ycbcr) - 1);
+                memcpy(opt_ass_ycbcr, val.u.s, nlen);
+                opt_ass_ycbcr[nlen] = '\0';
+            }
+
+            free(val.u.s);
         }
     }
 
@@ -547,6 +580,15 @@ static enum error parse_ass_opts(int argc, pchar **argv)
                 break;
             case SOPT_ASS_FS_ADJUST:
                 opt_ass_fs_adjust = true;
+                break;
+            case SOPT_ASS_SHADOW_BOX:
+                opt_ass_shadow_box = true;
+                break;
+            case SOPT_ASS_YCBCR:
+                if (strlen(optarg) > sizeof(opt_ass_ycbcr) - 1)
+                    log_warning("YCbCr matrix option is too long, ignoring...");
+                else
+                    strcpy(opt_ass_ycbcr, optarg);
                 break;
             default:
                 return ERR_OPT_UNKNOWN_OPT;

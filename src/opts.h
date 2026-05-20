@@ -32,6 +32,9 @@ extern int opt_ass_constant_spacing;
  * so it will still line up correctly */
 extern bool opt_ass_shift_ruby;
 extern const bool opt_ass_only_furi;
+/* Use BorderStyle=4 or not */
+extern bool opt_ass_shadow_box;
+extern char opt_ass_ycbcr[128];
 
 
 extern bool opt_srt_do;

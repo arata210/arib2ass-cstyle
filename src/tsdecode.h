@@ -20,6 +20,13 @@ struct tsdecode {
 #endif
 };
 
+struct color_info {
+    enum AVColorRange                   color_range;
+    enum AVColorPrimaries               color_primaries;
+    enum AVColorTransferCharacteristic  color_trc;
+    enum AVColorSpace                   color_space;
+};
+
 /*
  * Opens a .ts file for decoding.
  * Returns a tsdecode struct if successfull
@@ -35,5 +42,6 @@ void tsdecode_free(struct tsdecode *tsd);
 typedef enum error (*tsdecode_decode_packets_cb)(AVPacket *packet, void *arg);
 enum error tsdecode_decode_packets(struct tsdecode *tsd, tsdecode_decode_packets_cb cb, void *arg);
 time_t     tsdecode_get_video_length(const struct tsdecode *tsd);
+enum error tsdecode_get_color_info(const struct tsdecode *tsd, struct color_info *out_info);
 
 #endif /* ARIB2ASS_TSDECODE_H */

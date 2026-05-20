@@ -25,6 +25,9 @@ enum tagtext_style {
 
     //TT_STYLE_POS_XY,
 
+    TT_STYLE_SHADOW_X,
+    TT_STYLE_SHADOW_Y,
+
     TT_STYLE_COUNT_,
 
     /* This looks pretty wrong, but it kind of makes sense to put

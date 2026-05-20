@@ -121,6 +121,9 @@ static void all_styles_from_char(const struct subobj_caption_char *chr, struct t
     evs(TT_STYLE_UNDERLINE, style_value_bool, !!(chr->style & ARIBCC_CHARSTYLE_UNDERLINE));
     evs(TT_STYLE_STROKE, style_value_bool, !!(chr->style & ARIBCC_CHARSTYLE_STROKE));
 
+    evs(TT_STYLE_SHADOW_X, style_value_float, chr->shadow_x);
+    evs(TT_STYLE_SHADOW_Y, style_value_float, chr->shadow_y);
+
     //evs(TT_STYLE_POS_XY, style_value_u32, (chr->x << 16) | (chr->y & 0xffff));
 
 #undef evs
@@ -157,6 +160,9 @@ static int changed_styles_from_char(const struct subobj_caption_char *chr,
     evs(TT_STYLE_UNDERLINE, style_value_bool, !!(chr->style & ARIBCC_CHARSTYLE_UNDERLINE));
     evs(TT_STYLE_STROKE, style_value_bool, !!(chr->style & ARIBCC_CHARSTYLE_STROKE));
 
+    evs(TT_STYLE_SHADOW_X, style_value_float, chr->shadow_x);
+    evs(TT_STYLE_SHADOW_Y, style_value_float, chr->shadow_y);
+
     //evs(TT_STYLE_POS_XY, style_value_u32, (chr->x << 16) | (chr->y & 0xffff));
 
 #undef evs
@@ -164,7 +170,8 @@ static int changed_styles_from_char(const struct subobj_caption_char *chr,
     return newi;
 }
 
-static bool textevent_style_cmp(const struct tagtext_event *a, const struct tagtext_event *b)
+static bool textevent_style_cmp(const struct tagtext_event *a, const struct tagtext_event *b,
+        const struct tagtext_event other_current_styles[TT_STYLE_COUNT_])
 {
     if (a->type != TT_EVENT_TYPE_STYLE || b->type != TT_EVENT_TYPE_STYLE)
         return false;
@@ -184,7 +191,12 @@ static bool textevent_style_cmp(const struct tagtext_event *a, const struct tagt
         case TT_STYLE_SCALE_X:
         case TT_STYLE_SCALE_Y:
         case TT_STYLE_SPACING_X:
+        case TT_STYLE_SHADOW_Y:
             return a->style_value_float == b->style_value_float;
+
+        case TT_STYLE_SHADOW_X: // X will only match here if X = Y, and X = b
+            return other_current_styles[TT_STYLE_SHADOW_X].style_value_float == other_current_styles[TT_STYLE_SHADOW_Y].style_value_float &&
+                a->style_value_float == b->style_value_float;
 
         case TT_STYLE_BOLD:
         case TT_STYLE_ITALIC:
@@ -211,9 +223,10 @@ static enum error parse_so_chars_to_events(struct tagtext_ctx *ctx, const struct
     all_styles_from_char(chr, current_styles);
     for (int i = 0; i < ARRAY_COUNT(current_styles); i++) {
         if (ctx->optimize) {
-            if (textevent_style_cmp(&ctx->most_common_styles[current_styles[i].style], &current_styles[i]) == true)
+            if (textevent_style_cmp(&ctx->most_common_styles[current_styles[i].style], &current_styles[i], current_styles) == true) {
                 /* The style for this char is in the default style, so don't output a style event for it */
                 continue;
+            }
         }
         arrput(*out_events, current_styles[i]);
     }
@@ -238,7 +251,7 @@ static enum error parse_so_chars_to_events(struct tagtext_ctx *ctx, const struct
         }
         bool reset_style = true;
         for (int i = 0; i < TT_STYLE_COUNT_; i++) {
-            if (textevent_style_cmp(&current_styles[i], &ctx->most_common_styles[i]) == false) {
+            if (textevent_style_cmp(&current_styles[i], &ctx->most_common_styles[i], current_styles) == false) {
                 reset_style = false;
                 break;
             }

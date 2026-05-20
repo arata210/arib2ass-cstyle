@@ -240,7 +240,7 @@ int fnmain(int argc, pchar **argv)
             log_progress(LPS_BEGIN, mbuf);
             MEASURE_START(assw);
 
-            err = ass_write(&sctx, outpath);
+            err = ass_write(&sctx, &tsd, outpath);
 
             MEASURE_END(assw, measure_ms);
             psnprintf(measure_str, sizeof(measure_str), took_ms_fmt, measure_ms);

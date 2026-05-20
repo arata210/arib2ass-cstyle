@@ -28,6 +28,7 @@ struct subobj_caption_char {
     aribcc_charstyle_t style;
     int char_width, char_height;
     float char_horizontal_spacing, char_horizontal_scale;
+    float shadow_x, shadow_y;
 };
 
 struct subobj_caption_region {
