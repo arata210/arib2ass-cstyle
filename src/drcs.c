@@ -66,7 +66,7 @@ static void write_file_to_drcs_dir(const char *filename, const uint8_t *data, si
     const pchar *curr_dir = ".";
 #endif
 
-    n = psnprintf(fpath, sizeof(fpath), PSTR("%s%c%s%n%c%s"), curr_dir, PATHSPECC, subdir, &dirend, PATHSPECC, filename);
+    n = psnprintf(fpath, ARRAY_COUNT(fpath), PSTR("%s%c%s%n%c%s"), curr_dir, PATHSPECC, subdir, &dirend, PATHSPECC, filename);
     assert(n + 1 < ARRAY_COUNT(fpath));
 
     assert(fpath[dirend] == PATHSPECC);
@@ -117,7 +117,7 @@ enum error drcs_write_to_png(aribcc_drcs_t *drcs)
     if (err != NOERR)
         return err;
 
-    n = psnprintf(fname, sizeof(fname), PSTR("%s.png"), u8PC(md5));
+    n = psnprintf(fname, ARRAY_COUNT(fname), PSTR("%s.png"), u8PC(md5));
     assert(n + 1 < ARRAY_COUNT(fname));
 
     write_file_to_drcs_dir(fname, png_data, png_data_size);
@@ -167,7 +167,7 @@ static void drcs_dump_char(aribcc_drcsmap_t *map, const aribcc_caption_char_t *c
         if (err != NOERR)
             return;
 
-        n = psnprintf(fname, sizeof(fname), PSTR("%d_%d_%d_%d_%s.png"),
+        n = psnprintf(fname, ARRAY_COUNT(fname), PSTR("%d_%d_%d_%d_%s.png"),
                 replaced, w, h, depth, u8PC(md5));
         assert(n + 1 < ARRAY_COUNT(fname));
 
@@ -177,7 +177,7 @@ static void drcs_dump_char(aribcc_drcsmap_t *map, const aribcc_caption_char_t *c
         /* Filename format is
          * REPLACED_WIDTH_HEIGHT_DEPTH_MD5.bin
          */
-        n = psnprintf(fname, sizeof(fname), PSTR("%d_%d_%d_%d_%s.bin"),
+        n = psnprintf(fname, ARRAY_COUNT(fname), PSTR("%d_%d_%d_%d_%s.bin"),
                 replaced, w, h, depth, u8PC(md5));
         assert(n + 1 < ARRAY_COUNT(fname));
         write_file_to_drcs_dir(fname, px, pxsize);

@@ -92,7 +92,7 @@ static void create_output_path(enum output_type ot, const pchar *input, pchar ou
 
 #ifdef _WIN32
     pchar norm_outpath[512];
-    int clen = psnprintf(norm_outpath, sizeof(norm_outpath), L"%s", outpath);
+    int clen = psnprintf(norm_outpath, ARRAY_COUNT(norm_outpath), L"%s", outpath);
     assert(clen < ARRAY_COUNT(norm_outpath));
     for (int i = 0; i < clen; i++)
         if (norm_outpath[i] == L'/') norm_outpath[i] = L'\\';
@@ -188,7 +188,7 @@ int fnmain(int argc, pchar **argv)
         err = tsdecode_decode_packets(&tsd, decode, &dctx);
 
         MEASURE_END(tsdec, measure_ms);
-        psnprintf(measure_str, sizeof(measure_str), took_ms_fmt, measure_ms);
+        psnprintf(measure_str, ARRAY_COUNT(measure_str), took_ms_fmt, measure_ms);
         log_progress(LPS_END, measure_str);
 
         if (err != NOERR) {
@@ -206,7 +206,7 @@ int fnmain(int argc, pchar **argv)
 
         if (opt_srt_do) {
             create_output_path(SRT, input, outpath);
-            psnprintf(mbuf, sizeof(mbuf), PSTR("Writing .srt file to %s"), outpath);
+            psnprintf(mbuf, ARRAY_COUNT(mbuf), PSTR("Writing .srt file to %s"), outpath);
 
             log_progress(LPS_BEGIN, mbuf);
             MEASURE_START(srtw);
@@ -214,7 +214,7 @@ int fnmain(int argc, pchar **argv)
             err = srt_write(&sctx, outpath);
 
             MEASURE_END(srtw, measure_ms);
-            psnprintf(measure_str, sizeof(measure_str), took_ms_fmt, measure_ms);
+            psnprintf(measure_str, ARRAY_COUNT(measure_str), took_ms_fmt, measure_ms);
             log_progress(LPS_END, measure_str);
 
             if (err != NOERR) {
@@ -229,13 +229,13 @@ int fnmain(int argc, pchar **argv)
             subobj_reset_mod(&sctx);
 
             MEASURE_END(srtw, measure_ms);
-            psnprintf(measure_str, sizeof(measure_str), took_ms_fmt, measure_ms);
+            psnprintf(measure_str, ARRAY_COUNT(measure_str), took_ms_fmt, measure_ms);
             log_progress(LPS_END, measure_str);
         }
 
         if (opt_ass_do) {
             create_output_path(ASS, input, outpath);
-            psnprintf(mbuf, sizeof(mbuf), PSTR("Writing .ass file to %s"), outpath);
+            psnprintf(mbuf, ARRAY_COUNT(mbuf), PSTR("Writing .ass file to %s"), outpath);
 
             log_progress(LPS_BEGIN, mbuf);
             MEASURE_START(assw);
@@ -243,7 +243,7 @@ int fnmain(int argc, pchar **argv)
             err = ass_write(&sctx, &tsd, outpath);
 
             MEASURE_END(assw, measure_ms);
-            psnprintf(measure_str, sizeof(measure_str), took_ms_fmt, measure_ms);
+            psnprintf(measure_str, ARRAY_COUNT(measure_str), took_ms_fmt, measure_ms);
             log_progress(LPS_END, measure_str);
 
             if (err != NOERR) {

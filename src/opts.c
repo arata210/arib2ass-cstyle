@@ -127,15 +127,15 @@ static const struct option arg_options_srt[] = {
 static void print_help()
 {
     int pi = 0, lw = 0;
-    char pbuf[4096];
+    pchar pbuf[4096];
     #define HPRETTY(val, fmt, val_if_default, text_if_default) \
-        ((val == val_if_default) ? (PSTR(text_if_default)) : (lw = snprintf(pbuf + pi, sizeof(pbuf) - pi, fmt, val), pi += lw, pbuf + pi - lw))
+        ((val == val_if_default) ? (PSTR(text_if_default)) : (lw = psnprintf(pbuf + pi, ARRAY_COUNT(pbuf) - pi, PSTR(fmt), val), pi += lw, pbuf + pi - lw))
 
-    const char *val_font_path = HPRETTY(opt_ass_font_path, "%s", NULL, "[Unset]");
-    const char *val_font_face = HPRETTY(opt_ass_font_face, "%s", NULL, "[Unset]");
-    const char *val_constant_spacing = HPRETTY(opt_ass_constant_spacing, "%d", -1, "[Disabled]");
+    const pchar *val_font_path = HPRETTY(opt_ass_font_path, "%s", NULL, "[Unset]");
+    const pchar *val_font_face = HPRETTY(opt_ass_font_face, "%s", NULL, "[Unset]");
+    const pchar *val_constant_spacing = HPRETTY(opt_ass_constant_spacing, "%d", -1, "[Disabled]");
 
-    assert(pi < sizeof(pbuf));
+    assert(pi < ARRAY_COUNT(pbuf));
 
     pprintf(
             PSTR("arib2ass-cstyle")
@@ -598,10 +598,10 @@ static enum error parse_ass_opts(int argc, pchar **argv)
                 opt_ass_shadow_box = true;
                 break;
             case SOPT_ASS_YCBCR:
-                if (strlen(optarg) > sizeof(opt_ass_ycbcr) - 1)
-                    log_warning("YCbCr matrix option is too long, ignoring...");
+                if (PCu8size(optarg) > sizeof(opt_ass_ycbcr) - 1)
+                    log_warning("YCbCr matrix option is too long, ignoring...\n");
                 else
-                    strcpy(opt_ass_ycbcr, optarg);
+                    strcpy(opt_ass_ycbcr, PCu8(optarg));
                 break;
             default:
                 return ERR_OPT_UNKNOWN_OPT;

@@ -130,6 +130,13 @@ char *platform_pchar_to_u8(const pchar *in, int in_ccount, char *out, int out_bs
 	return out;
 }
 
+int platform_pchar_to_u8_size(const pchar *in)
+{
+	int n = WideCharToMultiByte(CP_UTF8, 0, in, -1, NULL, 0, NULL, NULL);
+	assert(n != 0);
+    return n - 1; // n includes the NULL terminator, but strlen on linux won't.
+}
+
 pchar *platform_u8_to_pchar_mem(char *in)
 {
 	int n = MultiByteToWideChar(CP_UTF8, 0, in, -1, NULL, 0);

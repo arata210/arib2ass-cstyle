@@ -15,15 +15,14 @@ typedef wchar_t pchar;
 
 #define ssize_t SSIZE_T
 #define strdup _strdup
-/* Wide snprintf are counting characters, not bytes, but we pass a byte count to the linux functions
- * so make it into a char count for wndows by dividing by sizeof(pchar) */
-#define psnprintf(b, s, fmt, ...) _snwprintf(b, s / sizeof(pchar), fmt, __VA_ARGS__)
+#define psnprintf _snwprintf
 #define PLATFORM_CURRENT_TIMESPEC(otsp) ((void)_timespec64_get(otsp, TIME_UTC))
 #define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
 #define fnmain wmain
 #define pstat _stati64
 #define pstatfn _wstat64
 #define ptimespec _timespec64
+#define pstrcasecmp(x, y) _stricmp(x, y)
 
 #define PSTR(s) L ## s
 #define PSTR2(s) PSTR(s)
@@ -43,15 +42,18 @@ typedef wchar_t pchar;
 #define reallocarray(ptr, n, size) (realloc(ptr, n * size))
 
 /* Convert a pchar into an utf8 text using a static buffer */
-#define PCu8_BUFFER_SIZE 1024
+#define PCu8_BUFFER_SIZE 4096
 extern char PCu8_buffer[PCu8_BUFFER_SIZE];
 #define PCu8(pc) (platform_pchar_to_u8(pc, -1, PCu8_buffer, sizeof(PCu8_buffer)))
+/* bytes required to hold pc in utf8 format, WITHOUT \0 */
+#define PCu8size(pc) (platform_pchar_to_u8_size(pc))
 
 #define u8PCmem(u8) (platform_u8_to_pchar_mem(u8))
 
-#define u8PC_BUFFER_SIZE 1024
+#define u8PC_BUFFER_SIZE 4096
 extern pchar u8PC_buffer[PCu8_BUFFER_SIZE];
 #define u8PC(u8) (platform_u8_to_pchar(u8, -1, u8PC_buffer, u8PC_BUFFER_SIZE))
+
 
 pchar *basename(pchar *path);
 pchar *get_current_dir_name();
@@ -66,6 +68,7 @@ int  platform_memory_map_file(const pchar *file, struct memory_file_map *out);
 void platform_memory_unmap_file(struct memory_file_map *map);
 
 char  *platform_pchar_to_u8(const pchar *in, int in_ccount, char *out, int out_bsize);
+int    platform_pchar_to_u8_size(const pchar *in);
 pchar *platform_u8_to_pchar(const char *in, int in_bcount, pchar *out, int out_csize);
 pchar *platform_u8_to_pchar_mem(char *in);
 #endif
@@ -83,6 +86,7 @@ typedef char pchar;
 #define PSTR2(s) PSTR(s)
 #define pstrdup(s) strdup(s)
 #define pstrcmp(x, y) strcmp(x, y)
+#define pstrcasecmp(x, y) strcasecmp(x, y)
 #define psnprintf snprintf
 
 #define pstat stat
@@ -102,6 +106,7 @@ typedef char pchar;
 #define _O_BINARY (0)
 
 #define PCu8(pc) (pc)
+#define PCu8size(pc) strlen(pc)
 #define u8PCmem(u8) (u8)
 #define u8PC(u8) (u8)
 

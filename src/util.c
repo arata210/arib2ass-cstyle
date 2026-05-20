@@ -48,7 +48,7 @@ char32_t utf8_to_unicode(const char *u8)
     char32_t cp;
 #ifdef __linux__
     mbstate_t s = {0};
-    static_assert(sizeof(char32_t) == sizeof(wchar_t));
+    static_assert(sizeof(char32_t) == sizeof(wchar_t), "wchar_t is not 32bit");
     size_t r = mbrtowc((wchar_t*)&cp, u8, MB_CUR_MAX, &s);
     if (r == (size_t)-1 || r == (size_t)-2)
         goto err;

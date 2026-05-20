@@ -89,9 +89,9 @@ static void write_header(FILE *f, int width, int height, const struct tsdecode *
     char ybuff[128];
     const char *ycbcr = opt_ass_ycbcr;
 
-    if (strcasecmp(opt_ass_ycbcr, "none") == 0)
+    if (pstrcasecmp(opt_ass_ycbcr, "none") == 0)
         ycbcr = "None"; // To make the case as expected (idk if matters or not)
-    else if (strcasecmp(opt_ass_ycbcr, "auto") == 0)
+    else if (pstrcasecmp(opt_ass_ycbcr, "auto") == 0)
         ycbcr = autodetect_ycbcr(tsd, ybuff);
     // else, use whatever the user says we should use
 
