@@ -70,6 +70,14 @@ The list of fonts contained in a .ttc file can be listed with the `fc-query` com
 To use the `MS PGothic` font for example, use `ass -o out.ass -f fonts/MSGOTHIC.TTC --font-face 'MS PGothic'`.
 Some universal font should be used that most users will have installed, or bundle the font file with the mkv, otherwise the formatting might be weird (mainly the unaligned ruby text).
 
+It's also possible to make the text have a background as it would have on TVs with the `--shadow-box` option. This will use BorderStyle 4 which is a [libass extension](https://github.com/libass/libass/wiki/Libass'-ASS-Extensions#borderstyle4).
+```bash
+ass -f ./fonts/MSGOTHIC.TTC --shadow-box
+```
+![](https://ra.thesungod.xyz/_Slw3M1c.png)
+
+The `--ycbcr` option will set `YCbCr Matrix` in the subtitle file. Default is `None`. This option can be `auto`, in which case it will follow the [recommendation](https://github.com/libass/libass/wiki/ASS-File-Format-Guide#ycbcr-matrix) from libass. Can also be any other string.
+
 ### .srt
 The default is just an srt file without any tags.
 ```bash
@@ -113,6 +121,9 @@ files = [ "./file1.toml", "./file2.toml" ]
 33d4c5243a45503d43fbb858a728664d = "📱"
 all = "🦋"
 ```
+
+## Tips
+If you want to see how some arib subtitle renders in reality, use the `ffplay -sub_type bitmap input.ts` command. This will use libaribcaption to render it into a bitmap without converting it to other formats.
 
 ## Issues
 This software is still in early developement, so it might crash or produce incorrect output.
