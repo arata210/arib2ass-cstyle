@@ -107,8 +107,10 @@ static void all_styles_from_char(const struct subobj_caption_char *chr, struct t
     }
 
     evs(TT_STYLE_TEXT_COLOR, style_value_u32, chr->text_color);
+    evs(TT_STYLE_TEXT_ALPHA, style_value_u8, ARIBCC_COLOR_A(chr->text_color));
     evs(TT_STYLE_BACK_COLOR, style_value_u32, chr->back_color);
     evs(TT_STYLE_STROKE_COLOR, style_value_u32, chr->stroke_color);
+    evs(TT_STYLE_STROKE_ALPHA, style_value_u8, ARIBCC_COLOR_A(chr->stroke_color));
     evs(TT_STYLE_SCALE_X, style_value_float, chr->char_horizontal_scale);
     evs(TT_STYLE_SCALE_Y, style_value_float, chr->ref->char_vertical_scale);
     evs(TT_STYLE_SPACING_X, style_value_float, chr->char_horizontal_spacing);
@@ -146,8 +148,10 @@ static int changed_styles_from_char(const struct subobj_caption_char *chr,
     }
 
     evs(TT_STYLE_TEXT_COLOR, style_value_u32, chr->text_color);
+    evs(TT_STYLE_TEXT_ALPHA, style_value_u8, ARIBCC_COLOR_A(chr->text_color));
     evs(TT_STYLE_BACK_COLOR, style_value_u32, chr->back_color);
     evs(TT_STYLE_STROKE_COLOR, style_value_u32, chr->stroke_color);
+    evs(TT_STYLE_STROKE_ALPHA, style_value_u8, ARIBCC_COLOR_A(chr->stroke_color));
     evs(TT_STYLE_SCALE_X, style_value_float, chr->char_horizontal_scale);
     evs(TT_STYLE_SCALE_Y, style_value_float, chr->ref->char_vertical_scale);
     evs(TT_STYLE_SPACING_X, style_value_float, chr->char_horizontal_spacing);
@@ -187,6 +191,10 @@ static bool textevent_style_cmp(const struct tagtext_event *a, const struct tagt
         case TT_STYLE_CHAR_HEIGHT:
         case TT_STYLE_CHAR_WIDTH:
             return a->style_value_u32 == b->style_value_u32;
+
+        case TT_STYLE_TEXT_ALPHA:
+        case TT_STYLE_STROKE_ALPHA:
+            return a->style_value_u8 == b->style_value_u8;
 
         case TT_STYLE_SCALE_X:
         case TT_STYLE_SCALE_Y:

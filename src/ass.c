@@ -161,6 +161,8 @@ static void ass_style_update_from_tt_events(const struct tagtext_event events[TT
             smap(TT_STYLE_UNDERLINE, underline, style_value_bool)
             smap(TT_STYLE_SHADOW_Y, shadow, style_value_float)
 
+            case TT_STYLE_TEXT_ALPHA: /* Alpha's in the color too, as it should in styles */
+            case TT_STYLE_STROKE_ALPHA:
             case TT_STYLE_SPACING_Y:
             case TT_STYLE_CHAR_WIDTH:
             case TT_STYLE_STROKE:
@@ -248,17 +250,25 @@ static int render_tagtext_event_style(const struct tagtext_event *ev, const stru
     switch (ev->style) {
         /* Colors are BGR */
         case TT_STYLE_TEXT_COLOR:
-            w += snprintf(out_text, size, "\\c&H%02X%02X%02X&\\1a&H%02X",
-                    (uint8_t)ARIBCC_COLOR_B(ev->style_value_u32), (uint8_t)ARIBCC_COLOR_G(ev->style_value_u32),
-                    (uint8_t)ARIBCC_COLOR_R(ev->style_value_u32), 0xff - (uint8_t)ARIBCC_COLOR_A(ev->style_value_u32));
+            w += snprintf(out_text, size, "\\c&H%02X%02X%02X&",
+                    (uint8_t)ARIBCC_COLOR_B(ev->style_value_u32),
+                    (uint8_t)ARIBCC_COLOR_G(ev->style_value_u32),
+                    (uint8_t)ARIBCC_COLOR_R(ev->style_value_u32));
+            break;
+        case TT_STYLE_TEXT_ALPHA:
+            w += snprintf(out_text, size, "\\1a&H%02hhX", 0xff - ev->style_value_u8);
             break;
         case TT_STYLE_BACK_COLOR:
             w += snprintf(out_text, size, "\\-STYLE_BACK_COLOR");
             break;
         case TT_STYLE_STROKE_COLOR:
-            w += snprintf(out_text, size, "\\3c&H%02X%02X%02X&\\3a&H%02X",
-                    (uint8_t)ARIBCC_COLOR_B(ev->style_value_u32), (uint8_t)ARIBCC_COLOR_G(ev->style_value_u32),
-                    (uint8_t)ARIBCC_COLOR_R(ev->style_value_u32), 0xff - (uint8_t)ARIBCC_COLOR_A(ev->style_value_u32));
+            w += snprintf(out_text, size, "\\3c&H%02X%02X%02X&",
+                    (uint8_t)ARIBCC_COLOR_B(ev->style_value_u32),
+                    (uint8_t)ARIBCC_COLOR_G(ev->style_value_u32),
+                    (uint8_t)ARIBCC_COLOR_R(ev->style_value_u32));
+            break;
+        case TT_STYLE_STROKE_ALPHA:
+            w += snprintf(out_text, size, "\\3a&H%02hhX", 0xff - ev->style_value_u8);
             break;
         case TT_STYLE_SCALE_X:
             w += snprintf(out_text, size, "\\fscx%s", sftf(ev->style_value_float * 100.0f));
@@ -303,6 +313,7 @@ static int render_tagtext_event_style(const struct tagtext_event *ev, const stru
             break;
 #endif
         default:
+            assert(false && "Unknown style for render");
             break;
     }
 

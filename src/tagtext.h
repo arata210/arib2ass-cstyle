@@ -9,8 +9,10 @@
 
 enum tagtext_style {
     TT_STYLE_TEXT_COLOR = 0, /* Main text color */
+    TT_STYLE_TEXT_ALPHA,     /* Alpha of main text color */
     TT_STYLE_BACK_COLOR,     /* ??? */
     TT_STYLE_STROKE_COLOR,   /* Outline color */
+    TT_STYLE_STROKE_ALPHA,   /* Alpha of outline color */
     TT_STYLE_SCALE_X,
     TT_STYLE_SCALE_Y,
     TT_STYLE_SPACING_X,
@@ -61,6 +63,7 @@ struct tagtext {
                 uintptr_t style_value;
                 float style_value_float;
                 uint32_t style_value_u32;
+                uint8_t style_value_u8;
                 bool style_value_bool;
             };
         };
