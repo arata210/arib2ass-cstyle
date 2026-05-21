@@ -29,6 +29,7 @@ static const struct drcs_conv static_replace_map[] = {
     {"516a7b4eb9de2841903301997e881e9d", 0x1F50A},
     {"56b48663ae06a5545e5b233bb006cdf0", 0x1F4F1},
     {"5c31e7978a711d0ca0469b294cb47ca6", 0x1F50A},
+    {"62e591e2fb286ee48c3265e6baac7120", 0x701E},
     {"68fc649b4a57a6103a25dc678fcec9f4", 0x1F4F1},
     {"6d5aa3ff99a144bd5138562787f58590", 0x1F4F1},
     {"74d535ca9f47d57fd78234f7019a525e", 0x269F},
