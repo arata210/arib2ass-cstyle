@@ -1,9 +1,9 @@
 
-#CFLAGS += -O0 -g3 -ggdb -Wall -std=gnu11 -Wno-unused-function -Wno-unused-variable -fsanitize=address -fsanitize=leak -fsanitize=undefined
-#CFLAGS += -O0 -g3 -ggdb -Wall -std=gnu11 #-fsanitize=address -fsanitize=leak -fsanitize=undefined
-#CFLAGS += -O0 -g3 -ggdb -Wall -std=gnu11 -Wno-unused-function -Wno-unused-variable #-fsanitize=address -fsanitize=leak -fsanitize=undefined
-#CFLAGS += -O2 -Wall -std=gnu11 -Wno-unused-function -Wno-unused-variable #-fsanitize=address -fsanitize=leak -fsanitize=undefined
-CFLAGS += -O2 -Wall -std=gnu11 -march=native -mtune=native
+#CFLAGS ?= -O0 -g3 -ggdb -Wall -std=gnu11 -Wno-unused-function -Wno-unused-variable -fsanitize=address -fsanitize=leak -fsanitize=undefined
+#CFLAGS ?= -O0 -g3 -ggdb -Wall -std=gnu11 #-fsanitize=address -fsanitize=leak -fsanitize=undefined
+#CFLAGS ?= -O0 -g3 -ggdb -Wall -std=gnu11 -Wno-unused-function -Wno-unused-variable #-fsanitize=address -fsanitize=leak -fsanitize=undefined
+#CFLAGS ?= -O2 -Wall -std=gnu11 -Wno-unused-function -Wno-unused-variable #-fsanitize=address -fsanitize=leak -fsanitize=undefined
+CFLAGS ?= -O2 -Wall -std=gnu11 -march=native -mtune=native
 
 CFLAGS += -I ./subm/toml-c/ -D_GNU_SOURCE $(shell pkg-config --cflags freetype2 libavcodec libavformat libavutil)
 LIBS += -lm -lstdc++ $(shell pkg-config --libs freetype2 libavcodec libavformat libavutil)
