@@ -287,9 +287,11 @@ static int render_tagtext_event_style(const struct tagtext_event *ev, const stru
         case TT_STYLE_CHAR_HEIGHT:
             w += snprintf(out_text, size, "\\fs%u", ev->style_value_u32);
             break;
-        /* Bold is ignored, always set */
+        case TT_STYLE_CHAR_WIDTH:
+            /* Ignore */
+            break;
         case TT_STYLE_BOLD:
-            return snprintf(out_text, size, "\\b%d", ev->style_value_bool);
+            w += snprintf(out_text, size, "\\b%d", ev->style_value_bool);
             break;
         case TT_STYLE_ITALIC:
             w += snprintf(out_text, size, "\\i%d", ev->style_value_bool);
