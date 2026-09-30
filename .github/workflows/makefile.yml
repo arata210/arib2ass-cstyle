@@ -1,0 +1,47 @@
+name: Build Windows EXE
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install MinGW and build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            mingw-w64 \
+            cmake \
+            make \
+            pkg-config \
+            gcc \
+            g++ \
+            git \
+            wget \
+            unzip
+
+      - name: Build
+        shell: bash
+        run: |
+          make -j4
+
+      - name: Find executable
+        shell: bash
+        run: |
+          find . -type f \( -name "*.exe" -o -name "a2ac" \) -print
+
+      - name: Upload EXE
+        uses: actions/upload-artifact@v4
+        with:
+          name: arib2ass-windows
+          path: |
+            **/*.exe
+            **/a2ac
+          if-no-files-found: error
