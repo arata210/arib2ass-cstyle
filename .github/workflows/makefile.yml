@@ -11,13 +11,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. 拉取代码（必须包含子模块，因为 Makefile 用到了 subm/）
+      # 1. 拉取代码（包含子模块）
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      # 2. 安装作者 README 要求的依赖，以及 MinGW 交叉编译器
+      # 2. 安装系统的依赖，以及 MinGW 交叉编译器
       - name: Install System Dependencies
         run: |
           sudo apt-get update
@@ -26,20 +26,24 @@ jobs:
             cmake \
             pkg-config \
             gcc-mingw-w64-x86-64 \
-            g++-mingw-w64-x86-64
+            g++-mingw-w64-x86-64 \
+            unzip \
+            curl
 
-      # 3. 下载并解压 Win64 版 FFmpeg 和 FreeType 依赖包，放到 MinGW 搜索路径下
-      #    这样原作者 Makefile 里的 pkg-config 才能在 Linux 下找到 Windows 版的库
-      - name: Setup MinGW Windows Libraries (FFmpeg & FreeType)
+      # 3. 下载并解压 Win64 版 FFmpeg 依赖包 (增加了 -fL 参数确保跟随重定向)
+      - name: Setup MinGW Windows Libraries (FFmpeg)
         run: |
           mkdir -p win_deps && cd win_deps
           
-          # 下载 FFmpeg Windows 64位开发头文件和库
-          curl -sL https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n6.1-latest-win64-gpl-shared-6.1.zip -o ffmpeg.zip
+          # 使用 -fL 参数跟随重定向；如果 BtbN 失败，自动降级备用地址
+          curl -fL "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2024-03-31-12-50/ffmpeg-n7.0-latest-win64-gpl-shared-7.0.zip" -o ffmpeg.zip || \
+          curl -fL "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-full-shared.7z" -o ffmpeg.zip || \
+          curl -fL "https://github.com/GyanD/codexffmpeg/releases/download/6.0/ffmpeg-6.0-full_build-shared.zip" -o ffmpeg.zip
+
           unzip -q ffmpeg.zip
           FFMPEG_DIR=$(find . -maxdepth 1 -type d -name "ffmpeg*" | head -n 1)
           
-          # 复制到 MinGW 交叉编译系统的默认包含路径中
+          # 复制头文件和库文件到 MinGW 交叉编译器的默认搜索目录
           sudo cp -r $FFMPEG_DIR/include/* /usr/x86_64-w64-mingw32/include/
           sudo cp -r $FFMPEG_DIR/lib/* /usr/x86_64-w64-mingw32/lib/
           cd ..
@@ -49,8 +53,7 @@ jobs:
         run: |
           find src/ -type f \( -name "*.c" -o -name "*.h" \) -exec sed -i 's/#include <BaseTsd.h>/#include <basetsd.h>/g' {} +
 
-      # 5. 直接调用原作者的 Makefile 编译！
-      #    把 CC 和 CXX 替换成 MinGW，并覆盖 -march=native（因为交叉编译不支持 native 架构）
+      # 5. 调用 Makefile 编译
       - name: Execute Makefile
         run: |
           make -j$(nproc) \
@@ -59,14 +62,14 @@ jobs:
             CFLAGS="-O2 -Wall -std=gnu11 -Wno-incompatible-pointer-types -Wno-implicit-function-declaration -I/usr/x86_64-w64-mingw32/include" \
             LIBS="-L/usr/x86_64-w64-mingw32/lib -lm -lstdc++ -lshlwapi -mconsole"
 
-      # 6. 打包产物
+      # 6. 打包并移动产物
       - name: Prepare Output
         run: |
           mkdir -p output
-          if [ -f "a2ac" ]; then
-            mv a2ac output/a2ac.exe
-          elif [ -f "a2ac.exe" ]; then
+          if [ -f "a2ac.exe" ]; then
             mv a2ac.exe output/a2ac.exe
+          elif [ -f "a2ac" ]; then
+            mv a2ac output/a2ac.exe
           fi
 
       # 7. 上传编译好的 exe
