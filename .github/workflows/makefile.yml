@@ -1,4 +1,4 @@
-name: Build Windows Executable via Cross-Compilation
+name: Cross-Compile Windows Executable
 
 on:
   push:
@@ -6,9 +6,6 @@ on:
       - main
       - master
   pull_request:
-    branches:
-      - main
-      - master
   workflow_dispatch:
 
 jobs:
@@ -16,14 +13,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. 拉取代码（递归包含子模块）
+      # 1. 拉取代码
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      # 2. 安装 Linux 下的 MinGW-w64 交叉编译工具链及依赖
-      - name: Install Dependencies
+      # 2. 安装 MinGW 交叉编译器以及依赖
+      - name: Install MinGW and Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -32,49 +29,83 @@ jobs:
             ninja-build \
             gcc-mingw-w64-x86-64 \
             g++-mingw-w64-x86-64 \
-            pkg-config-mingw-w64-x86-64
+            pkg-config \
+            pkg-config-mingw-w64-x86-64 \
+            yasm \
+            nasm
 
-      # 3. 补齐代码缺陷（压制 GCC 14 警告 & 注入 Windows 系统库）并执行交叉编译
-      - name: Patch & Cross-Compile
+      # 3. 安装 Windows 版的 FFmpeg 和 FreeType 开发库 (使用 Ubuntu MinGW 移植库)
+      - name: Install MinGW Prebuilt FFmpeg & FreeType
         run: |
-          # A. 禁用有兼容问题的性能计时宏 PLATFORM_CURRENT_TIMESPEC
-          sed -i 's/#define PLATFORM_CURRENT_TIMESPEC.*/#define PLATFORM_CURRENT_TIMESPEC(otsp) ((void)0)/g' src/platform.h || true
+          # 尝试直接安装 ubuntu 提供的 mingw 第三方依赖包
+          sudo apt-get install -y \
+            mingw-w64-x86-64-dev || true
 
-          # B. 放宽 GCC 指针类型检查与未声明函数限制，避免报错中断
+          # 安装并设置 pkg-config 的交叉编译环境变量
+          export PKG_CONFIG_LIBDIR=/usr/x86_64-w64-mingw32/lib/pkgconfig
+
+      # 4. 修复大小写敏感报错 (BaseTsd.h -> basetsd.h) 与依赖补丁
+      - name: Patch Source Code
+        run: |
+          # A. 修复 Linux 大小写敏感引起的 BaseTsd.h 头文件找不到问题
+          find src/ -type f \( -name "*.c" -o -name "*.h" \) -exec sed -i 's/#include <BaseTsd.h>/#include <basetsd.h>/g' {} +
+          find src/ -type f \( -name "*.c" -o -name "*.h" \) -exec sed -i 's/#include <basetss.h>/#include <basetsd.h>/g' {} +
+
+          # B. 压制 GCC 14 强报错
           sed -i 's/-Wall/-Wall -Wno-incompatible-pointer-types -Wno-implicit-function-declaration/g' Makefile
 
-          # C. 移除 -march=native 防止生成无法在普通 CPU 上运行的指令
+          # C. 清理平台特定优化标志
           sed -i 's/-march=native -mtune=native//g' Makefile
 
-          # D. 注入 Windows 控制台与 Shell API 依赖库 (-mconsole -lshlwapi)
+          # D. 禁用引起时间的平台宏
+          sed -i 's/#define PLATFORM_CURRENT_TIMESPEC.*/#define PLATFORM_CURRENT_TIMESPEC(otsp) ((void)0)/g' src/platform.h || true
+
+          # E. 追加 Windows 系统链接库
           sed -i 's/-lavutil/-lavutil -mconsole -lshlwapi/g' Makefile
 
-          # E. 先编译子模块 libaribcaption 静态库
-          make subm/libaribcaption/build/libaribcaption.a CC=x86_64-w64-mingw32-gcc CXX=x86_64-w64-mingw32-g++
+      # 5. 下载并安装 x86_64-w64-mingw32 的 FFmpeg/FreeType 静态二进制依赖包
+      - name: Download Win64 FFmpeg & FreeType Dev Headers
+        run: |
+          mkdir -p deps && cd deps
+          # 下载预编译好的 FFmpeg Win64 开发头文件与库
+          curl -sL https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n6.1-latest-win64-gpl-shared-6.1.zip -o ffmpeg.zip || \
+          curl -sL https://github.com/GyanD/codexffmpeg/releases/download/6.0/ffmpeg-6.0-full_build-shared.zip -o ffmpeg.zip
+          
+          unzip -q ffmpeg.zip
+          FFMPEG_DIR=$(find . -maxdepth 1 -type d -name "ffmpeg*" | head -n 1)
+          
+          # 将头文件和库复制到交叉编译器目录
+          sudo cp -r $FFMPEG_DIR/include/* /usr/x86_64-w64-mingw32/include/
+          sudo cp -r $FFMPEG_DIR/lib/* /usr/x86_64-w64-mingw32/lib/
+          cd ..
 
-          # F. 补齐头文件映射目录
+      # 6. 先编译子模块 libaribcaption
+      - name: Build Submodule libaribcaption
+        run: |
+          make subm/libaribcaption/build/libaribcaption.a CC=x86_64-w64-mingw32-gcc CXX=x86_64-w64-mingw32-g++
+          
+          # 补齐子模块头文件路径
           mkdir -p subm/libaribcaption/include/aribcaption
           mkdir -p subm/libaribcaption/build/include/aribcaption
           cp -rn subm/libaribcaption/include/* subm/libaribcaption/include/aribcaption/ 2>/dev/null || true
-          cp -rn subm/libaribcaption/build/include/* subm/libaribcaption/include/aribcaption/ 2>/dev/null || true
+          cp -rn subm/libaribcaption/build/include/* subm/libaribcaption/build/include/aribcaption/ 2>/dev/null || true
           cp -rn subm/libaribcaption/build/include/* subm/libaribcaption/build/include/aribcaption/ 2>/dev/null || true
 
-          # G. 调用交叉编译器生成主程序 executable
-          make -j$(nproc) CC=x86_64-w64-mingw32-gcc CXX=x86_64-w64-mingw32-g++
-
-      # 4. 收集生成的 .exe 文件
-      - name: Prepare Artifact
+      # 7. 执行交叉编译
+      - name: Build Executable
         run: |
-          mkdir -p dist
-          if [ -f "a2ac.exe" ]; then
-            cp a2ac.exe dist/a2ac.exe
-          elif [ -f "a2ac" ]; then
-            cp a2ac dist/a2ac.exe
-          fi
+          # 显式指定头文件搜索路径和静态链接库
+          make -j$(nproc) \
+            CC=x86_64-w64-mingw32-gcc \
+            CXX=x86_64-w64-mingw32-g++ \
+            CFLAGS="-I/usr/x86_64-w64-mingw32/include -I./subm/toml-c/ -Isubm/libaribcaption/include/ -Isubm/libaribcaption/build/include/ -D_GNU_SOURCE" \
+            LDFLAGS="-L/usr/x86_64-w64-mingw32/lib"
 
-      # 5. 上传产物
-      - name: Upload Build Artifact
+      # 8. 收集与上传产物
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: arib2ass-cstyle-windows-x64
-          path: dist/*
+          name: arib2ass-windows-x64
+          path: |
+            *.exe
+            a2ac
