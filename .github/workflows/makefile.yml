@@ -37,18 +37,17 @@ jobs:
             mingw-w64-x86_64-ffmpeg
             mingw-w64-x86_64-freetype
 
-      # 3. 自动打补丁（修补 Windows 下 MinGW 的 API 与类型错误）并编译
+      # 3. 自动打补丁（修补 TIME_UTC 未定义及指针类型）并编译
       - name: Patch & Build
         shell: msys2 {0}
         run: |
-          # 1. 修复 platform.h 中的 _timespec64_get 适配，改用标准的 timespec_get
-          sed -i 's/_timespec64_get/timespec_get/g' src/platform.h || true
+          # 1. 禁用 MinGW 下有兼容问题的性能计时宏 PLATFORM_CURRENT_TIMESPEC
+          sed -i 's/#define PLATFORM_CURRENT_TIMESPEC.*/#define PLATFORM_CURRENT_TIMESPEC(otsp) ((void)0)/g' src/platform.h || true
 
-          # 2. 给 GCC 编译选项加上 -Wno-incompatible-pointer-types 和 -Wno-implicit-function-declaration
-          # 绕过作者在宽字符/窄字符转换上的类型报错
+          # 2. 忽略指针类型和未声明函数的严格报错
           sed -i 's/-Wall/-Wall -Wno-incompatible-pointer-types -Wno-implicit-function-declaration/g' Makefile
 
-          # 3. 移除 -march=native，防止生成运行崩溃的指令集
+          # 3. 移除 -march=native 防止指令集崩溃
           sed -i 's/-march=native -mtune=native//g' Makefile
 
           # 4. 先单独构建子模块静态库，生成 aribcc_config.h
