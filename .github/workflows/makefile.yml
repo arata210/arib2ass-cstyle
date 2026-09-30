@@ -37,14 +37,23 @@ jobs:
             mingw-w64-x86_64-ffmpeg
             mingw-w64-x86_64-freetype
 
-      # 3. 执行 Makefile 编译（修复顺序导致找不到头文件的问题）
+      # 3. 执行编译（修补头文件目录）
       - name: Build with Makefile
         shell: msys2 {0}
         run: |
-          # 先单独构建子模块依赖
+          # 先构建子模块
           make subm/libaribcaption/build/libaribcaption.a
-          # 再并行编译主程序
-          make CFLAGS="-O2 -Wall -std=gnu11" -j$(nproc)
+
+          # 创建 aribcaption 目录软链接/副本，解决 #include <aribcaption/aribcaption.h> 找不到的问题
+          mkdir -p subm/libaribcaption/include/aribcaption
+          cp -rn subm/libaribcaption/include/* subm/libaribcaption/include/aribcaption/ 2>/dev/null || true
+          if [ -d "subm/libaribcaption/build/include" ]; then
+            mkdir -p subm/libaribcaption/build/include/aribcaption
+            cp -rn subm/libaribcaption/build/include/* subm/libaribcaption/build/include/aribcaption/ 2>/dev/null || true
+          fi
+
+          # 编译主程序
+          make CFLAGS="-O2 -Wall -std=gnu11 -Isubm/libaribcaption/include" -j$(nproc)
 
       # 4. 收集 a2ac.exe 及依赖的 DLL 动态库
       - name: Collect Output & DLL Dependencies
