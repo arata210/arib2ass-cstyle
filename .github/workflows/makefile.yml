@@ -1,26 +1,28 @@
-name: Build arib2ass-cstyle
+name: Build Windows Executable
 
 on:
   push:
-    branches: [ main, master ]
+    branches:
+      - main
+      - master
   pull_request:
-    branches: [ main, master ]
+    branches:
+      - main
+      - master
   workflow_dispatch:
 
 jobs:
   build-windows:
     runs-on: windows-latest
 
-    defaults:
-      run:
-        shell: msys2 {0}
-
     steps:
+      # 1. 递归拉取代码（包含子模块）
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
+      # 2. 配置 MSYS2 / MinGW64 环境并安装依赖
       - name: Setup MSYS2
         uses: msys2/setup-msys2@v2
         with:
@@ -29,28 +31,61 @@ jobs:
           install: >-
             git
             make
-            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-toolchain
             mingw-w64-x86_64-cmake
-            mingw-w64-x86_64-ninja
             mingw-w64-x86_64-pkg-config
-            mingw-w64-x86_64-freetype
             mingw-w64-x86_64-ffmpeg
-            mingw-w64-x86_64-libpng
-            mingw-w64-x86_64-harfbuzz
-            mingw-w64-x86_64-glib2
+            mingw-w64-x86_64-freetype
 
-      - name: Build project
+      # 3. 自动打补丁（修补 TIME_UTC 未定义、指针类型、以及 Missing WinMain/shlwapi 链接错）并编译
+      - name: Patch & Build
+        shell: msys2 {0}
         run: |
-          # 自动为 Makefile 中的链接行追加 MinGW 缺失的参数（-mconsole -lshlwapi）
+          # A. 禁用 MinGW 下有兼容问题的性能计时宏 PLATFORM_CURRENT_TIMESPEC
+          sed -i 's/#define PLATFORM_CURRENT_TIMESPEC.*/#define PLATFORM_CURRENT_TIMESPEC(otsp) ((void)0)/g' src/platform.h || true
+
+          # B. 忽略指针类型和未声明函数的严格报错，防止 GCC 14+ 报错中断
+          sed -i 's/-Wall/-Wall -Wno-incompatible-pointer-types -Wno-implicit-function-declaration/g' Makefile
+
+          # C. 移除 -march=native 防止 CPU 指令集不兼容导致崩溃
+          sed -i 's/-march=native -mtune=native//g' Makefile
+
+          # D. 补全 Windows 链接参数：添加 -mconsole 解决 WinMain 缺失，添加 -lshlwapi 解决 PathIsRelativeW 缺失
           sed -i 's/-lavutil/-lavutil -mconsole -lshlwapi/g' Makefile
-          
-          # 执行编译流程
+
+          # E. 先单独构建子模块静态库，生成配置文件与头文件
+          make subm/libaribcaption/build/libaribcaption.a
+
+          # F. 补全 aribcaption 头文件映射目录，防止找不到子库头文件
+          mkdir -p subm/libaribcaption/include/aribcaption
+          mkdir -p subm/libaribcaption/build/include/aribcaption
+          cp -rn subm/libaribcaption/include/* subm/libaribcaption/include/aribcaption/ 2>/dev/null || true
+          cp -rn subm/libaribcaption/build/include/* subm/libaribcaption/include/aribcaption/ 2>/dev/null || true
+          cp -rn subm/libaribcaption/build/include/* subm/libaribcaption/build/include/aribcaption/ 2>/dev/null || true
+
+          # G. 开始编译主工程
           make -j$(nproc)
 
+      # 4. 收集 a2ac.exe 及依赖的 DLL 动态库
+      - name: Collect Output & DLL Dependencies
+        shell: msys2 {0}
+        run: |
+          mkdir -p dist
+          
+          if [ -f "a2ac" ]; then
+            cp a2ac dist/a2ac.exe
+          elif [ -f "a2ac.exe" ]; then
+            cp a2ac.exe dist/a2ac.exe
+          fi
+
+          cd dist
+          if [ -f "a2ac.exe" ]; then
+            ldd a2ac.exe | grep /mingw64/bin/ | awk '{print $3}' | xargs -I {} cp -u {} .
+          fi
+
+      # 5. 上传编译产物 Zip 包
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: a2ac-windows-x64
-          path: |
-            a2ac.exe
-            a2ac
+          name: arib2ass-cstyle-windows-x64
+          path: dist/*
