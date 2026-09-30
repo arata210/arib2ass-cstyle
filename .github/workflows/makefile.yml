@@ -36,7 +36,7 @@ jobs:
           mkdir -p win_deps && cd win_deps
           
           # 使用 -fL 参数跟随重定向；如果 BtbN 失败，自动降级备用地址
-          curl -fL "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2024-03-31-12-50/ffmpeg-n7.0-latest-win64-gpl-shared-7.0.zip" -o ffmpeg.zip || \
+          curl -fL "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl-shared.zip" -o ffmpeg.zip || \
           curl -fL "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-full-shared.7z" -o ffmpeg.zip || \
           curl -fL "https://github.com/GyanD/codexffmpeg/releases/download/6.0/ffmpeg-6.0-full_build-shared.zip" -o ffmpeg.zip
 
