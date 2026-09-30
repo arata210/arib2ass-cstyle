@@ -2,11 +2,19 @@ name: Build arib2ass
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - master
+      - main
+  pull_request:
+
+permissions:
+  contents: read
 
 jobs:
   build-windows:
-    name: Build Windows x64
-    runs-on: ubuntu-latest
+    name: Build Windows x64 arib2ass.exe
+    runs-on: windows-latest
 
     steps:
       - name: Checkout
@@ -14,56 +22,83 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Install build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            build-essential \
-            cmake \
-            make \
-            pkg-config \
-            libavformat-dev \
-            libavcodec-dev \
-            libavutil-dev \
-            libfreetype6-dev \
-            mingw-w64 \
-            g++-mingw-w64-x86-64
+      - name: Setup MSYS2 MINGW64
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            base-devel
+            git
+            make
+            cmake
+            pkgconf
+            mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-ffmpeg
+            mingw-w64-x86_64-freetype
+            mingw-w64-x86_64-libpng
 
-      - name: Build libaribcaption
+      - name: Build arib2ass.exe
+        shell: msys2 {0}
         run: |
+          set -e
+
+          echo "=== Compiler ==="
+          gcc --version
+
+          echo "=== pkg-config ==="
+          pkg-config --modversion freetype2
+          pkg-config --modversion libavcodec
+          pkg-config --modversion libavformat
+          pkg-config --modversion libavutil
+
+          echo "=== Clean ==="
+          make clean || true
+
+          echo "=== Configure libaribcaption ==="
           mkdir -p subm/libaribcaption/build
           cd subm/libaribcaption/build
 
           cmake .. \
             -DCMAKE_BUILD_TYPE=Release \
-            -DARIBCC_NO_EXCEPTIONS=ON \
-            -DARIBCC_NO_RENDERER=ON
+            -DARIBCC_NO_EXCEPTIONS:BOOL=ON \
+            -DARIBCC_NO_RENDERER:BOOL=ON
 
-          cmake --build . -j"$(nproc)"
+          echo "=== Build libaribcaption ==="
+          cmake --build . --config Release -j"$(nproc)"
 
-      - name: Build arib2ass.exe
-        run: |
-          make clean || true
+          cd ../../..
 
-          make -j"$(nproc)" \
-            CC=x86_64-w64-mingw32-gcc \
-            CXX=x86_64-w64-mingw32-g++
+          echo "=== Generate version.h ==="
+          printf '#ifndef A2AC_VERSION\n#define A2AC_VERSION "%s"\n#endif\n' "${GITHUB_SHA:0:4}" > src/version.h
 
-      - name: Verify executable
-        run: |
-          file arib2ass.exe
-          ls -lh arib2ass.exe
+          echo "=== Build arib2ass ==="
+          make -j"$(nproc)"
 
-      - name: Package
-        run: |
+          echo "=== Check result ==="
+          file a2ac.exe
+          ./a2ac.exe -h
+
+          echo "=== Prepare artifact ==="
           mkdir -p artifact
-          cp arib2ass.exe artifact/
-
-          cd artifact
-          zip ../arib2ass-windows-x64.zip arib2ass.exe
+          cp a2ac.exe artifact/arib2ass.exe
 
       - name: Upload arib2ass.exe
         uses: actions/upload-artifact@v4
         with:
           name: arib2ass-windows-x64
+          path: artifact/arib2ass.exe
+          if-no-files-found: error
+
+      - name: Create ZIP
+        shell: msys2 {0}
+        run: |
+          cd artifact
+          7z a ../arib2ass-windows-x64.zip arib2ass.exe
+
+      - name: Upload ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: arib2ass-windows-x64-zip
           path: arib2ass-windows-x64.zip
+          if-no-files-found: error
