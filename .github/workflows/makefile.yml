@@ -9,20 +9,20 @@ on:
     branches:
       - main
       - master
-  workflow_dispatch: # 支持手动点击触发
+  workflow_dispatch:
 
 jobs:
   build-windows:
     runs-on: windows-latest
 
     steps:
-      # 1. 递归检出仓库（必须加上 submodules，因为 Makefile 用到了 subm/libaribcaption）
+      # 1. 递归拉取代码（包含子模块）
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      # 2. 配置 MSYS2 / MinGW64 环境并安装所有编译所需依赖
+      # 2. 配置 MSYS2 / MinGW64 环境并安装依赖
       - name: Setup MSYS2
         uses: msys2/setup-msys2@v2
         with:
@@ -37,33 +37,33 @@ jobs:
             mingw-w64-x86_64-ffmpeg
             mingw-w64-x86_64-freetype
 
-      # 3. 执行 Makefile 编译
+      # 3. 执行 Makefile 编译（修复顺序导致找不到头文件的问题）
       - name: Build with Makefile
         shell: msys2 {0}
         run: |
-          # 覆盖 CFLAGS 移除 -march=native，确保生成的 exe 兼容所有 x86_64 CPU
+          # 先单独构建子模块依赖
+          make subm/libaribcaption/build/libaribcaption.a
+          # 再并行编译主程序
           make CFLAGS="-O2 -Wall -std=gnu11" -j$(nproc)
 
-      # 4. 收集 a2ac.exe 及运行所需的 DLL 动态链接库
+      # 4. 收集 a2ac.exe 及依赖的 DLL 动态库
       - name: Collect Output & DLL Dependencies
         shell: msys2 {0}
         run: |
           mkdir -p dist
           
-          # 复制生成的二进制文件并重命名为 a2ac.exe
           if [ -f "a2ac" ]; then
             cp a2ac dist/a2ac.exe
           elif [ -f "a2ac.exe" ]; then
             cp a2ac.exe dist/a2ac.exe
           fi
 
-          # 自动分析并把依赖的 MinGW DLL 库（如 ffmpeg/freetype/libstdc++ 等）打包进来
           cd dist
           if [ -f "a2ac.exe" ]; then
             ldd a2ac.exe | grep /mingw64/bin/ | awk '{print $3}' | xargs -I {} cp -u {} .
           fi
 
-      # 5. 上传最终可以直接解压运行的 Zip 压缩包
+      # 5. 上传编译产物 Zip 包
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v4
         with:
