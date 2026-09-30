@@ -1,10 +1,11 @@
-name: Build Windows EXE
+name: Build arib2ass
 
 on:
   workflow_dispatch:
 
 jobs:
-  build:
+  build-linux:
+    name: Build Linux x64
     runs-on: ubuntu-latest
 
     steps:
@@ -13,35 +14,48 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Install MinGW and build tools
+      - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            mingw-w64 \
+            build-essential \
             cmake \
             make \
             pkg-config \
-            gcc \
-            g++ \
-            git \
-            wget \
-            unzip
+            libavformat-dev \
+            libavcodec-dev \
+            libavutil-dev \
+            libfreetype6-dev
 
-      - name: Build
-        shell: bash
+      - name: Build libaribcaption
         run: |
-          make -j4
+          mkdir -p subm/libaribcaption/build
+          cd subm/libaribcaption/build
 
-      - name: Find executable
-        shell: bash
+          cmake .. \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DARIBCC_NO_EXCEPTIONS:BOOL=ON \
+            -DARIBCC_NO_RENDERER:BOOL=ON
+
+          cmake --build . -j"$(nproc)"
+
+      - name: Build arib2ass
         run: |
-          find . -type f \( -name "*.exe" -o -name "a2ac" \) -print
+          make -j"$(nproc)"
 
-      - name: Upload EXE
+      - name: Check output
+        run: |
+          ls -lh
+          file arib2ass
+
+      - name: Package
+        run: |
+          mkdir -p artifact
+          cp arib2ass artifact/
+          tar -czf arib2ass-linux-x64.tar.gz -C artifact arib2ass
+
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: arib2ass-windows
-          path: |
-            **/*.exe
-            **/a2ac
-          if-no-files-found: error
+          name: arib2ass-linux-x64
+          path: arib2ass-linux-x64.tar.gz
