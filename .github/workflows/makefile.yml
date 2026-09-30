@@ -17,7 +17,7 @@ jobs:
         with:
           submodules: recursive
 
-      # 2. 安装系统的编译依赖与 MinGW 交叉编译器
+      # 2. 安装系统的编译依赖、FreeType 依赖与 MinGW 交叉编译器
       - name: Install System Dependencies & MinGW
         run: |
           sudo apt-get update
@@ -27,6 +27,7 @@ jobs:
             pkg-config \
             gcc-mingw-w64-x86-64 \
             g++-mingw-w64-x86-64 \
+            libfreetype6-dev \
             unzip \
             curl
 
@@ -65,15 +66,15 @@ jobs:
           cmake --build .
 
       # 6. 调用主 Makefile 进行最终构建
-      #    - 加入 -Isubm/libaribcaption/build/include 解决 aribcc_config.h 缺失问题
-      #    - 加入 -Lsubm/libaribcaption/build -laribcaption 显式链接静态库
+      #    - 加入 FreeType 头文件路径: -I/usr/x86_64-w64-mingw32/include/freetype2
+      #    - 链接库中增加 -lfreetype
       - name: Execute Makefile
         run: |
           make -j1 \
             CC=x86_64-w64-mingw32-gcc \
             CXX=x86_64-w64-mingw32-g++ \
-            CFLAGS="-O2 -Wall -std=gnu11 -Wno-incompatible-pointer-types -Wno-implicit-function-declaration -I/usr/x86_64-w64-mingw32/include -Isubm/libaribcaption/include -Isubm/libaribcaption/build/include -Isubm/getopt-win -Isubm/toml-c" \
-            LIBS="-L/usr/x86_64-w64-mingw32/lib -Lsubm/libaribcaption/build -laribcaption -lavcodec -lavformat -lavutil -lm -lstdc++ -lshlwapi -mconsole"
+            CFLAGS="-O2 -Wall -std=gnu11 -Wno-incompatible-pointer-types -Wno-implicit-function-declaration -I/usr/x86_64-w64-mingw32/include -I/usr/x86_64-w64-mingw32/include/freetype2 -Isubm/libaribcaption/include -Isubm/libaribcaption/build/include -Isubm/getopt-win -Isubm/toml-c" \
+            LIBS="-L/usr/x86_64-w64-mingw32/lib -Lsubm/libaribcaption/build -laribcaption -lavcodec -lavformat -lavutil -lfreetype -lm -lstdc++ -lshlwapi -mconsole"
 
       # 7. 打包产物
       - name: Prepare Output
