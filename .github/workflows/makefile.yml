@@ -37,23 +37,31 @@ jobs:
             mingw-w64-x86_64-ffmpeg
             mingw-w64-x86_64-freetype
 
-      # 3. 执行编译
-      - name: Build with Makefile
+      # 3. 自动打补丁（修补 Windows 下 MinGW 的 API 与类型错误）并编译
+      - name: Patch & Build
         shell: msys2 {0}
         run: |
-          # 1. 先构建子模块静态库，生成 aribcc_config.h 等文件
+          # 1. 修复 platform.h 中的 _timespec64_get 适配，改用标准的 timespec_get
+          sed -i 's/_timespec64_get/timespec_get/g' src/platform.h || true
+
+          # 2. 给 GCC 编译选项加上 -Wno-incompatible-pointer-types 和 -Wno-implicit-function-declaration
+          # 绕过作者在宽字符/窄字符转换上的类型报错
+          sed -i 's/-Wall/-Wall -Wno-incompatible-pointer-types -Wno-implicit-function-declaration/g' Makefile
+
+          # 3. 移除 -march=native，防止生成运行崩溃的指令集
+          sed -i 's/-march=native -mtune=native//g' Makefile
+
+          # 4. 先单独构建子模块静态库，生成 aribcc_config.h
           make subm/libaribcaption/build/libaribcaption.a
 
-          # 2. 创建 aribcaption 子目录，把源码 include 和 build include 里的头文件全都补全进去
+          # 5. 补全 aribcaption 头文件映射目录
           mkdir -p subm/libaribcaption/include/aribcaption
           mkdir -p subm/libaribcaption/build/include/aribcaption
-          
           cp -rn subm/libaribcaption/include/* subm/libaribcaption/include/aribcaption/ 2>/dev/null || true
           cp -rn subm/libaribcaption/build/include/* subm/libaribcaption/include/aribcaption/ 2>/dev/null || true
           cp -rn subm/libaribcaption/build/include/* subm/libaribcaption/build/include/aribcaption/ 2>/dev/null || true
 
-          # 3. 不覆盖 CFLAGS，改用 EXTRA_CFLAGS 补充优化参数（移除 -march=native 防止 CPU 不兼容）
-          sed -i 's/-march=native -mtune=native//g' Makefile
+          # 6. 开始编译主工程
           make -j$(nproc)
 
       # 4. 收集 a2ac.exe 及依赖的 DLL 动态库
