@@ -50,7 +50,7 @@ jobs:
           find src/ subm/ -type f \( -name "*.c" -o -name "*.h" -o -name "*.cpp" \) -exec sed -i 's/#include <Windows.h>/#include <windows.h>/g' {} +
           find src/ subm/ -type f \( -name "*.c" -o -name "*.h" -o -name "*.cpp" \) -exec sed -i 's/#include <BaseTsd.h>/#include <basetsd.h>/g' {} +
 
-      # 5. 提前单独使用 MinGW 工具链构建 libaribcaption 子模块（单线程/避免 Make 并发读写冲突）
+      # 5. 提前单独构建 libaribcaption 子模块
       - name: Pre-build libaribcaption Submodule
         run: |
           mkdir -p subm/libaribcaption/build
@@ -64,14 +64,16 @@ jobs:
             -DARIBCC_NO_RENDERER:BOOL=ON
           cmake --build .
 
-      # 6. 调用主 Makefile 进行最终构建 (使用 -j1 避免竞争)
+      # 6. 调用主 Makefile 进行最终构建
+      #    - 加入 -Isubm/libaribcaption/build/include 解决 aribcc_config.h 缺失问题
+      #    - 加入 -Lsubm/libaribcaption/build -laribcaption 显式链接静态库
       - name: Execute Makefile
         run: |
           make -j1 \
             CC=x86_64-w64-mingw32-gcc \
             CXX=x86_64-w64-mingw32-g++ \
-            CFLAGS="-O2 -Wall -std=gnu11 -Wno-incompatible-pointer-types -Wno-implicit-function-declaration -I/usr/x86_64-w64-mingw32/include -Isubm/libaribcaption/include -Isubm/getopt-win -Isubm/toml-c" \
-            LIBS="-L/usr/x86_64-w64-mingw32/lib -lm -lstdc++ -lshlwapi -mconsole"
+            CFLAGS="-O2 -Wall -std=gnu11 -Wno-incompatible-pointer-types -Wno-implicit-function-declaration -I/usr/x86_64-w64-mingw32/include -Isubm/libaribcaption/include -Isubm/libaribcaption/build/include -Isubm/getopt-win -Isubm/toml-c" \
+            LIBS="-L/usr/x86_64-w64-mingw32/lib -Lsubm/libaribcaption/build -laribcaption -lavcodec -lavformat -lavutil -lm -lstdc++ -lshlwapi -mconsole"
 
       # 7. 打包产物
       - name: Prepare Output
