@@ -30,12 +30,10 @@ jobs:
             unzip \
             curl
 
-      # 3. 下载并解压指定的 FFmpeg Win64 开发包到 MinGW 环境
+      # 3. 下载并解压指定的 BtbN FFmpeg Win64 开发包
       - name: Setup MinGW Windows Libraries (FFmpeg)
         run: |
           mkdir -p win_deps && cd win_deps
-          
-          # 下载用户指定的 BtbN 最新 FFmpeg 共享库版本
           curl -fL "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl-shared.zip" -o ffmpeg.zip
           unzip -q ffmpeg.zip
 
@@ -46,24 +44,36 @@ jobs:
           sudo cp -r $FFMPEG_DIR/lib/* /usr/x86_64-w64-mingw32/lib/
           cd ..
 
-      # 4. 批量修复 Linux 环境下区分大小写的 Windows 头文件引用 (<Windows.h> -> <windows.h>, <BaseTsd.h> -> <basetsd.h>)
+      # 4. 修复 Linux 环境下大小写敏感的 Windows 头文件引用
       - name: Fix Case-Sensitivity Header Includes for Linux
         run: |
           find src/ subm/ -type f \( -name "*.c" -o -name "*.h" -o -name "*.cpp" \) -exec sed -i 's/#include <Windows.h>/#include <windows.h>/g' {} +
           find src/ subm/ -type f \( -name "*.c" -o -name "*.h" -o -name "*.cpp" \) -exec sed -i 's/#include <BaseTsd.h>/#include <basetsd.h>/g' {} +
 
-      # 5. 调用 Makefile 编译主工程
-      #    - 指定交叉编译器为 MinGW
-      #    - 补全 subm/ 下子模块的头文件包含路径 (-I)
+      # 5. 提前单独使用 MinGW 工具链构建 libaribcaption 子模块（单线程/避免 Make 并发读写冲突）
+      - name: Pre-build libaribcaption Submodule
+        run: |
+          mkdir -p subm/libaribcaption/build
+          cd subm/libaribcaption/build
+          cmake .. \
+            -DCMAKE_SYSTEM_NAME=Windows \
+            -DCMAKE_C_COMPILER=x86_64-w64-mingw32-gcc \
+            -DCMAKE_CXX_COMPILER=x86_64-w64-mingw32-g++ \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DARIBCC_NO_EXCEPTIONS:BOOL=ON \
+            -DARIBCC_NO_RENDERER:BOOL=ON
+          cmake --build .
+
+      # 6. 调用主 Makefile 进行最终构建 (使用 -j1 避免竞争)
       - name: Execute Makefile
         run: |
-          make -j$(nproc) \
+          make -j1 \
             CC=x86_64-w64-mingw32-gcc \
             CXX=x86_64-w64-mingw32-g++ \
             CFLAGS="-O2 -Wall -std=gnu11 -Wno-incompatible-pointer-types -Wno-implicit-function-declaration -I/usr/x86_64-w64-mingw32/include -Isubm/libaribcaption/include -Isubm/getopt-win -Isubm/toml-c" \
             LIBS="-L/usr/x86_64-w64-mingw32/lib -lm -lstdc++ -lshlwapi -mconsole"
 
-      # 6. 打包产物
+      # 7. 打包产物
       - name: Prepare Output
         run: |
           mkdir -p output
@@ -73,7 +83,7 @@ jobs:
             mv a2ac output/a2ac.exe
           fi
 
-      # 7. 上传生成的 exe 可执行文件
+      # 8. 上传生成的 exe 可执行文件
       - name: Upload Windows Executable
         uses: actions/upload-artifact@v4
         with:
