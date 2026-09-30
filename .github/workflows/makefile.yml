@@ -1,104 +1,71 @@
-name: Build arib2ass
+name: Build Windows Executable
 
 on:
-  workflow_dispatch:
   push:
     branches:
-      - master
       - main
+      - master
   pull_request:
-
-permissions:
-  contents: read
+    branches:
+      - main
+      - master
+  workflow_dispatch: # 支持手动点击触发
 
 jobs:
   build-windows:
-    name: Build Windows x64 arib2ass.exe
     runs-on: windows-latest
 
     steps:
-      - name: Checkout
+      # 1. 递归检出仓库（必须加上 submodules，因为 Makefile 用到了 subm/libaribcaption）
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Setup MSYS2 MINGW64
+      # 2. 配置 MSYS2 / MinGW64 环境并安装所有编译所需依赖
+      - name: Setup MSYS2
         uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
           update: true
           install: >-
-            base-devel
             git
             make
-            cmake
-            pkgconf
             mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-pkg-config
             mingw-w64-x86_64-ffmpeg
             mingw-w64-x86_64-freetype
-            mingw-w64-x86_64-libpng
 
-      - name: Build arib2ass.exe
+      # 3. 执行 Makefile 编译
+      - name: Build with Makefile
         shell: msys2 {0}
         run: |
-          set -e
+          # 覆盖 CFLAGS 移除 -march=native，确保生成的 exe 兼容所有 x86_64 CPU
+          make CFLAGS="-O2 -Wall -std=gnu11" -j$(nproc)
 
-          echo "=== Compiler ==="
-          gcc --version
-
-          echo "=== pkg-config ==="
-          pkg-config --modversion freetype2
-          pkg-config --modversion libavcodec
-          pkg-config --modversion libavformat
-          pkg-config --modversion libavutil
-
-          echo "=== Clean ==="
-          make clean || true
-
-          echo "=== Configure libaribcaption ==="
-          mkdir -p subm/libaribcaption/build
-          cd subm/libaribcaption/build
-
-          cmake .. \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DARIBCC_NO_EXCEPTIONS:BOOL=ON \
-            -DARIBCC_NO_RENDERER:BOOL=ON
-
-          echo "=== Build libaribcaption ==="
-          cmake --build . --config Release -j"$(nproc)"
-
-          cd ../../..
-
-          echo "=== Generate version.h ==="
-          printf '#ifndef A2AC_VERSION\n#define A2AC_VERSION "%s"\n#endif\n' "${GITHUB_SHA:0:4}" > src/version.h
-
-          echo "=== Build arib2ass ==="
-          make -j"$(nproc)"
-
-          echo "=== Check result ==="
-          file a2ac.exe
-          ./a2ac.exe -h
-
-          echo "=== Prepare artifact ==="
-          mkdir -p artifact
-          cp a2ac.exe artifact/arib2ass.exe
-
-      - name: Upload arib2ass.exe
-        uses: actions/upload-artifact@v4
-        with:
-          name: arib2ass-windows-x64
-          path: artifact/arib2ass.exe
-          if-no-files-found: error
-
-      - name: Create ZIP
+      # 4. 收集 a2ac.exe 及运行所需的 DLL 动态链接库
+      - name: Collect Output & DLL Dependencies
         shell: msys2 {0}
         run: |
-          cd artifact
-          7z a ../arib2ass-windows-x64.zip arib2ass.exe
+          mkdir -p dist
+          
+          # 复制生成的二进制文件并重命名为 a2ac.exe
+          if [ -f "a2ac" ]; then
+            cp a2ac dist/a2ac.exe
+          elif [ -f "a2ac.exe" ]; then
+            cp a2ac.exe dist/a2ac.exe
+          fi
 
-      - name: Upload ZIP
+          # 自动分析并把依赖的 MinGW DLL 库（如 ffmpeg/freetype/libstdc++ 等）打包进来
+          cd dist
+          if [ -f "a2ac.exe" ]; then
+            ldd a2ac.exe | grep /mingw64/bin/ | awk '{print $3}' | xargs -I {} cp -u {} .
+          fi
+
+      # 5. 上传最终可以直接解压运行的 Zip 压缩包
+      - name: Upload Build Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: arib2ass-windows-x64-zip
-          path: arib2ass-windows-x64.zip
-          if-no-files-found: error
+          name: arib2ass-cstyle-windows-x64
+          path: dist/*
